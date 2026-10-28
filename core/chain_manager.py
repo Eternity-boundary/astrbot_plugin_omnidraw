@@ -39,13 +39,13 @@ class ChainManager:
         if str(request_kwargs.get("resolution", "") or "").strip():
             return request_kwargs
 
-        # OpenAI 标准接口只认 size，直接透传 aspect_ratio 会被上游拒绝
-        # （Unknown parameter: 'aspect_ratio'）。调用方只给 aspect_ratio 时静默换算。
-        if getattr(provider_config, "api_type", None) in (
-            APIType.OPENAI_IMAGE,
-            APIType.OPENAI_CHAT,
-        ):
-            mapped_size = aspect_ratio_to_size(request_kwargs.get("aspect_ratio", ""))
+        # 仅标准图像通道按节点模型换算；Chat 中转站保留原有比例透传行为。
+        # model 是 Provider 保留参数，实际请求使用节点配置，不使用 kwargs 覆写。
+        if getattr(provider_config, "api_type", None) == APIType.OPENAI_IMAGE:
+            mapped_size = aspect_ratio_to_size(
+                request_kwargs.get("aspect_ratio", ""),
+                getattr(provider_config, "model", ""),
+            )
             if mapped_size:
                 request_kwargs["size"] = mapped_size
                 request_kwargs.pop("aspect_ratio", None)
